@@ -1,0 +1,64 @@
+version: "3.7"
+networks:
+  network:
+    driver: bridge
+
+services:
+  mysql-database:
+    image: mysql/mysql-server:5.7
+    ports:
+      - "3307:3306"
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - network
+
+  rabbitmq:
+    image: rabbitmq:3.8-management
+    networks:
+      - network
+    ports:
+      - 5672:5672
+      - 15672:15672
+
+  producer-api:
+    image: producer-api/app
+    build: ./producer-api
+    ports:
+      - 8000:8000
+    volumes:
+      - ./app
+    env_file:
+      - producer-api/.env
+    networks:
+      - network
+    depends_on:
+      mysql-database:
+        condition: service_healthy
+    depends_on:
+      - rabbitmq
+    links:
+      - rabbitmq
+
+  consumer-api:
+    image: consumer-api/app
+    build: ./consumer-api
+    ports:
+      - 9000:9000
+    volumes:
+      - ./app
+    env_file:
+      - consumer-api/.env
+    networks:
+      - network
+    depends_on:
+      mysql-database:
+        condition: service_healthy
+    depends_on:
+      - rabbitmq
+    links:
+      - rabbitmq
